@@ -1,0 +1,7 @@
+# Ignore totally packaged file
+*.docset
+# Ignore generated files
+*.meta/
+*.html
+Content/
+docSet.dsidx
