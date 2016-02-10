@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>Salesforce</string>
+    <!-- Displayed in list view -->
+	<key>CFBundleName</key>
+	<string>Salesforce</string>
+	<key>DocSetPlatformFamily</key>
+	<string>sfdc</string>
+	<key>isDashDocset</key>
+	<true/>
+    <key>dashIndexFilePath</key>
+    <string>index.htm</string>
+</dict>
+</plist>
