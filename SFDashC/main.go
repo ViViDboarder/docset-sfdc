@@ -70,7 +70,7 @@ func verifyVersion(toc *AtlasTOC) error {
 }
 
 func printSuccess(toc *AtlasTOC) {
-	fmt.Println("Success:", toc.DocTitle, "-", toc.Version.VersionText)
+	fmt.Println("Success:", toc.DocTitle, "-", toc.Version.VersionText, "-", toc.Version.DocVersion)
 }
 
 func saveMainContent(toc *AtlasTOC) {

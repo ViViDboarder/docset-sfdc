@@ -14,22 +14,26 @@ run-combined:
 package-apex:
 	$(eval type = Apex)
 	$(eval package = Salesforce $(type).docset)
+	$(eval version = $(shell cat SFDashC/$(shell echo $(type)| tr A-Z a-z)-version.txt))
 	mkdir -p "$(package)/Contents/Resources/Documents"
 	cp -r SFDashC/atlas.en-us.apexcode.meta "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/*.html "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/*.css "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/Info-$(type).plist "$(package)/Contents/Info.plist"
 	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
+	@echo "Docset generated!"
 
 package-vf:
 	$(eval type = Pages)
 	$(eval package = Salesforce $(type).docset)
+	$(eval version = $(shell cat SFDashC/$(shell echo $(type)| tr A-Z a-z)-version.txt))
 	mkdir -p "$(package)/Contents/Resources/Documents"
 	cp -r SFDashC/atlas.en-us.pages.meta "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/*.html "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/*.css "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/Info-$(type).plist "$(package)/Contents/Info.plist"
 	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
+	@echo "Docset generated!"
 
 package-combined:
 	$(eval type = Combined)
@@ -40,11 +44,17 @@ package-combined:
 	cp SFDashC/*.css "$(package)/Contents/Resources/Documents/"
 	cp SFDashC/Info-$(type).plist "$(package)/Contents/Info.plist"
 	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
+	@echo "Docset generated!"
+
+archive:
+	find *.docset -depth 0 | xargs -I '{}' sh -c 'tar --exclude=".DS_Store" -czf "$$(echo {} | sed "s/\.[^.]*$$//").tgz" "{}"'
+	@echo "Archives created!"
 
 clean-index:
 	rm -f SFDashC/docSet.dsidx
 
 clean: clean-index
 	rm -fr SFDashC/*.meta
-	rm -f SFDashC/*.css
 	rm -fr *.docset
+	rm -f SFDashC/*.css
+	rm -f *.tgz
