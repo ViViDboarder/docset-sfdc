@@ -13,5 +13,7 @@
 	<true/>
     <key>dashIndexFilePath</key>
     <string>index.htm</string>
+    <key>DashDocSetFallbackURL</key>
+    <string>https://developer.salesforce.com/docs/</string>
 </dict>
 </plist>

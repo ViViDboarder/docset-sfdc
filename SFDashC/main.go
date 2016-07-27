@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/coopernurse/gorp"
 	_ "github.com/mattn/go-sqlite3"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ TODO:
 
 // CSS Paths
 var cssBasePath = "https://developer.salesforce.com/resource/stylesheets"
-var cssFiles = []string{"docs.min.css"}
+var cssFiles = []string{"holygrail.min.css", "docs.min.css", "syntax-highlighter.min.css"}
 
 // JSON Structs
 
@@ -163,7 +164,10 @@ func saveMainContent(toc *AtlasTOC) {
 		ExitIfError(err)
 
 		defer ofile.Close()
-		_, err = ofile.WriteString(content)
+		_, err = ofile.WriteString(
+			"<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />" +
+				content,
+		)
 		ExitIfError(err)
 	}
 }
@@ -172,6 +176,13 @@ func main() {
 	locale, deliverables, silent := parseFlags()
 	if silent {
 		WithoutWarning()
+	}
+
+	// Download CSS
+	for _, cssFile := range cssFiles {
+		throttle <- 1
+		wg.Add(1)
+		go downloadCSS(cssFile, &wg)
 	}
 
 	// Init the Sqlite db
@@ -197,16 +208,6 @@ func main() {
 
 		printSuccess(toc)
 	}
-
-	// Download CSS
-	throttle <- 1
-	/*
-	 * wg.Add(1)
-
-	 * for _, cssUrl := range cssFiles {
-	 * 	go downloadLink(cssBasePath+"/"+cssUrl, &wg)
-	 * }
-	 */
 
 	wg.Wait()
 }
@@ -333,23 +334,25 @@ func (entry TOCEntry) CleanTitle(t SupportedType) string {
 }
 
 // GetRelLink extracts only the relative link from the Link Href
-func (entry TOCEntry) GetRelLink() (relLink string) {
+func (entry TOCEntry) GetRelLink(removeAnchor bool) (relLink string) {
 	if entry.LinkAttr.Href == "" {
 		return
 	}
 
 	// Get the JSON file
 	relLink = entry.LinkAttr.Href
-	anchorIndex := strings.LastIndex(relLink, "#")
-	if anchorIndex > 0 {
-		relLink = relLink[0:anchorIndex]
+	if removeAnchor {
+		anchorIndex := strings.LastIndex(relLink, "#")
+		if anchorIndex > 0 {
+			relLink = relLink[0:anchorIndex]
+		}
 	}
 	return
 }
 
 // GetContent retrieves Content for this TOCEntry from the API
 func (entry TOCEntry) GetContent(toc *AtlasTOC) (content *TOCContent, err error) {
-	relLink := entry.GetRelLink()
+	relLink := entry.GetRelLink(true)
 	if relLink == "" {
 		return
 	}
@@ -371,7 +374,6 @@ func (entry TOCEntry) GetContent(toc *AtlasTOC) (content *TOCContent, err error)
 	// Read the downloaded JSON
 	defer resp.Body.Close()
 	contents, err := ioutil.ReadAll(resp.Body)
-	// fmt.Println(string(contents))
 	if err != nil {
 		return
 	}
@@ -379,6 +381,13 @@ func (entry TOCEntry) GetContent(toc *AtlasTOC) (content *TOCContent, err error)
 	// Load into Struct
 	content = new(TOCContent)
 	err = json.Unmarshal([]byte(contents), content)
+	if err != nil {
+		fmt.Println("Error reading JSON")
+		fmt.Println(resp.Status)
+		fmt.Println(url)
+		fmt.Println(string(contents))
+		return
+	}
 	return
 }
 
@@ -435,19 +444,19 @@ func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *Atlas
 }
 
 // GetContentFilepath returns the filepath that should be used for the content
-func (entry TOCEntry) GetContentFilepath(toc *AtlasTOC) string {
-	relLink := entry.GetRelLink()
+func (entry TOCEntry) GetContentFilepath(toc *AtlasTOC, removeAnchor bool) string {
+	relLink := entry.GetRelLink(removeAnchor)
 	if relLink == "" {
 		ExitIfError(NewFormatedError("Link not found for %s", entry.ID))
 	}
 
-	return fmt.Sprintf("%s/%s/%s", toc.Version.VersionURL, toc.Deliverable, relLink)
+	return fmt.Sprintf("atlas.%s.%s.meta/%s/%s", toc.Locale, toc.Deliverable, toc.Deliverable, relLink)
 }
 
 func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	filePath := entry.GetContentFilepath(toc)
+	filePath := entry.GetContentFilepath(toc, true)
 	// Make sure file doesn't exist first
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		content, err := entry.GetContent(toc)
@@ -461,10 +470,42 @@ func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 		ofile, err := os.Create(filePath)
 		ExitIfError(err)
 
+		header := "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />" +
+			"<base href=\"../../\"/>\n"
+		for _, cssFile := range cssFiles {
+			header += fmt.Sprintf("<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">", cssFile)
+		}
+		header += "<style>body { padding: 15px; }</style>"
+
 		defer ofile.Close()
-		_, err = ofile.WriteString("<base href=\"../../\"/>\n" + content.Content)
+		_, err = ofile.WriteString(
+			header + content.Content,
+		)
 		ExitIfError(err)
 	}
+	<-throttle
+}
+
+func downloadCSS(fileName string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Dir(fileName), 0755)
+		ExitIfError(err)
+
+		ofile, err := os.Create(fileName)
+		ExitIfError(err)
+		defer ofile.Close()
+
+		cssURL := cssBasePath + "/" + fileName
+		response, err := http.Get(cssURL)
+		ExitIfError(err)
+		defer response.Body.Close()
+
+		_, err = io.Copy(ofile, response.Body)
+		ExitIfError(err)
+	}
+
 	<-throttle
 }
 
@@ -477,7 +518,7 @@ func saveSearchIndex(dbmap *gorp.DbMap, entry TOCEntry, entryType *SupportedType
 		return
 	}
 
-	relLink := entry.GetContentFilepath(toc)
+	relLink := entry.GetContentFilepath(toc, false)
 	name := entry.CleanTitle(*entryType)
 	if entryType.ShowNamespace && len(entryHierarchy) > 0 {
 		// Show namespace for methods

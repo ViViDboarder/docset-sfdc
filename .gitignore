@@ -5,3 +5,7 @@
 *.html
 Content/
 docSet.dsidx
+# Downloaded CSS files
+docs.min.css
+holygrail.min.css
+syntax-highlighter.min.css
