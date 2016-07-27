@@ -16,5 +16,5 @@ Dependencies
 
 Currently these are not auto resolved. You must install the following:
 
-    * github.com/coopernurse/gorp
-    * github.com/mattn/go-sqlite3
+* github.com/coopernurse/gorp
+* github.com/mattn/go-sqlite3
