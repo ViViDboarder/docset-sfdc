@@ -47,7 +47,7 @@ package-combined:
 	@echo "Docset generated!"
 
 archive:
-	find *.docset -depth 0 | xargs -I '{}' sh -c 'tar --exclude=".DS_Store" -czf "$$(echo {} | sed "s/\.[^.]*$$//").tgz" "{}"'
+	find *.docset -depth 0 | xargs -I '{}' sh -c 'tar --exclude=".DS_Store" -czf "$$(echo {} | sed -e "s/\.[^.]*$$//" -e "s/ /_/").tgz" "{}"'
 	@echo "Archives created!"
 
 clean-index:
