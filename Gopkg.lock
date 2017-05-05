@@ -1,0 +1,19 @@
+memo = "1f1d5928eb9c306d42831a9b9d96e1ef8d11095cd843a3222acd869ee999f650"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/coopernurse/gorp"
+  packages = ["."]
+  revision = "236e1383df4c6b402e251d3fe2dcea50dab1faf1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mattn/go-sqlite3"
+  packages = ["."]
+  revision = "cf7286f069c3ef596efcc87781a4653a2e7607bd"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "feeb485667d1fdabe727840fe00adc22431bc86e"

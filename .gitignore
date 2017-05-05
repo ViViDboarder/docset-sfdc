@@ -11,3 +11,5 @@ holygrail.min.css
 syntax-highlighter.min.css
 *-version.txt
 *.tgz
+# External Go dependencies
+vendor/
