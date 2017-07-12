@@ -34,13 +34,13 @@ func NewFormatedError(format string, a ...interface{}) error {
 
 // NewTypeNotFoundError returns an error for a TOCEntry with an unknown type
 func NewTypeNotFoundError(entry TOCEntry) error {
-	return NewFormatedError("Type not found : %s %s", entry.Text, entry.ID)
+	return NewFormatedError("Type not found: %s %s", entry.Text, entry.ID)
 }
 
 // ExitIfError is a helper function for terminating if an error is not nil
 func ExitIfError(err error) {
 	if err != nil {
-		fmt.Println("ERROR :", err)
+		fmt.Println("ERROR: ", err)
 		os.Exit(1)
 	}
 }
@@ -48,6 +48,6 @@ func ExitIfError(err error) {
 // WarnIfError is a helper function for terminating if an error is not nil
 func WarnIfError(err error) {
 	if err != nil && shouldWarn {
-		fmt.Println("WARNING :", err)
+		fmt.Println("WARNING: ", err)
 	}
 }

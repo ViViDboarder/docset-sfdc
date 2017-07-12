@@ -42,16 +42,12 @@ func parseFlags() (locale string, deliverables []string, silent bool) {
 func getTOC(locale string, deliverable string) (toc *AtlasTOC, err error) {
 	var tocURL = fmt.Sprintf("https://developer.salesforce.com/docs/get_document/atlas.%s.%s.meta", locale, deliverable)
 	resp, err := http.Get(tocURL)
-	if err != nil {
-		return
-	}
+	ExitIfError(err)
 
 	// Read the downloaded JSON
 	defer resp.Body.Close()
 	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
+	ExitIfError(err)
 
 	// Load into Struct
 	toc = new(AtlasTOC)
@@ -64,7 +60,7 @@ func verifyVersion(toc *AtlasTOC) error {
 	currentVersion := toc.Version.DocVersion
 	topVersion := toc.AvailableVersions[0].DocVersion
 	if currentVersion != topVersion {
-		return NewFormatedError("verifyVersion : retrieved version is not the latest. Found %s, latest is %s", currentVersion, topVersion)
+		return NewFormatedError("verifyVersion: retrieved version is not the latest. Found %s, latest is %s", currentVersion, topVersion)
 	}
 	return nil
 }
