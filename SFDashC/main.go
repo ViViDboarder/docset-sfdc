@@ -138,7 +138,7 @@ func main() {
 
 		// Download each entry
 		for _, entry := range toc.TOCEntries {
-			if entry.ID == "apex_reference" || entry.ID == "pages_compref" {
+			if entry.ID == "apex_dev_guide" || entry.ID == "pages_compref" {
 				processChildReferences(entry, nil, toc)
 			}
 		}
