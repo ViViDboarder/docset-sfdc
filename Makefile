@@ -19,36 +19,38 @@ run-combined: clean-index
 package-apex: run-apex
 	$(eval name = Apex)
 	$(eval package = Salesforce $(name).docset)
-	$(eval version = $(shell cat SFDashC/apexcode-version.txt))
+	$(eval version = $(shell cat ./build/apexcode-version.txt))
+	cat ./SFDashC/docset-apexcode.json | sed s/VERSION/$(version)/ > ./build/docset-apexcode.json
 	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r SFDashC/atlas.en-us.apexcode.meta "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/*.html "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/*.css "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
+	cp -r ./build/atlas.en-us.apexcode.meta "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
+	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
+	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
 	@echo "Docset generated!"
 
 package-vf: run-vf
 	$(eval name = Pages)
 	$(eval package = Salesforce $(name).docset)
-	$(eval version = $(shell cat SFDashC/pages-version.txt))
+	$(eval version = $(shell cat ./build/pages-version.txt))
+	cat ./SFDashC/docset-pages.json | sed s/VERSION/$(version)/ > ./build/docset-pages.json
 	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r SFDashC/atlas.en-us.pages.meta "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/*.html "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/*.css "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
+	cp -r ./build/atlas.en-us.pages.meta "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
+	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
+	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
 	@echo "Docset generated!"
 
 package-combined: run-combined
 	$(eval name = Combined)
 	$(eval package = Salesforce $(name).docset)
 	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r SFDashC/*.meta "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/*.html "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/*.css "$(package)/Contents/Resources/Documents/"
-	cp SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
+	cp -r ./build/*.meta "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
+	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
+	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
 	@echo "Docset generated!"
 
 archive:
@@ -56,10 +58,9 @@ archive:
 	@echo "Archives created!"
 
 clean-index:
-	rm -f SFDashC/docSet.dsidx
+	rm -f ./build/docSet.dsidx
 
 clean: clean-index
-	rm -fr SFDashC/*.meta
+	rm -fr ./build
 	rm -fr *.docset
-	rm -f SFDashC/*.css
 	rm -f *.tgz

@@ -13,8 +13,9 @@ import (
 )
 
 // CSS Paths
-var cssBasePath = "https://developer.salesforce.com/resource/stylesheets"
+var cssBaseURL = "https://developer.salesforce.com/resource/stylesheets"
 var cssFiles = []string{"holygrail.min.css", "docs.min.css", "syntax-highlighter.min.css"}
+var buildDir = "build"
 
 var wg sync.WaitGroup
 var throttle = make(chan int, maxConcurrency)
@@ -70,6 +71,8 @@ func printSuccess(toc *AtlasTOC) {
 
 func saveMainContent(toc *AtlasTOC) {
 	filePath := fmt.Sprintf("%s.html", toc.Deliverable)
+	// Prepend build dir
+	filePath = filepath.Join(buildDir, filePath)
 	// Make sure file doesn't exist first
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		content := toc.Content
@@ -93,6 +96,8 @@ func saveMainContent(toc *AtlasTOC) {
 
 func saveContentVersion(toc *AtlasTOC) {
 	filePath := fmt.Sprintf("%s-version.txt", toc.Deliverable)
+	// Prepend build dir
+	filePath = filepath.Join(buildDir, filePath)
 	err := os.MkdirAll(filepath.Dir(filePath), 0755)
 	ExitIfError(err)
 
@@ -118,7 +123,7 @@ func main() {
 	}
 
 	// Init the Sqlite db
-	dbmap = InitDb()
+	dbmap = InitDb(buildDir)
 	err := dbmap.TruncateTables()
 	ExitIfError(err)
 
@@ -132,12 +137,6 @@ func main() {
 		saveContentVersion(toc)
 
 		// Download each entry
-		/*
-		 * topLevelEntryIDs := map[string]bool{
-		 * 	"apex_dev_guide": true,
-		 * 	"pages_compref":  true,
-		 * }
-		 */
 		for _, entry := range toc.TOCEntries {
 			processChildReferences(entry, nil, toc)
 		}
@@ -203,6 +202,8 @@ func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	filePath := entry.GetContentFilepath(toc, true)
+	// Prepend build dir
+	filePath = filepath.Join(buildDir, filePath)
 	// Make sure file doesn't exist first
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		content, err := entry.GetContent(toc)
@@ -235,15 +236,16 @@ func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 func downloadCSS(fileName string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		err = os.MkdirAll(filepath.Dir(fileName), 0755)
+	filePath := filepath.Join(buildDir, fileName)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Dir(filePath), 0755)
 		ExitIfError(err)
 
-		ofile, err := os.Create(fileName)
+		ofile, err := os.Create(filePath)
 		ExitIfError(err)
 		defer ofile.Close()
 
-		cssURL := cssBasePath + "/" + fileName
+		cssURL := cssBaseURL + "/" + fileName
 		response, err := http.Get(cssURL)
 		ExitIfError(err)
 		defer response.Body.Close()

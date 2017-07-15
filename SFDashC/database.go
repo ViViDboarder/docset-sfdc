@@ -4,12 +4,19 @@ import (
 	"database/sql"
 	"github.com/coopernurse/gorp"
 	_ "github.com/mattn/go-sqlite3"
+	"os"
+	"path/filepath"
 )
 
 var dbmap *gorp.DbMap
+var dbName = "docSet.dsidx"
 
-func InitDb() *gorp.DbMap {
-	db, err := sql.Open("sqlite3", "docSet.dsidx")
+func InitDb(buildDir string) *gorp.DbMap {
+	dbPath := filepath.Join(buildDir, dbName)
+	err := os.MkdirAll(filepath.Dir(dbPath), 0755)
+	ExitIfError(err)
+
+	db, err := sql.Open("sqlite3", dbPath)
 	ExitIfError(err)
 
 	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.SqliteDialect{}}

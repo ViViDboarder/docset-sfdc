@@ -13,3 +13,4 @@ syntax-highlighter.min.css
 *.tgz
 # External Go dependencies
 vendor/
+build/
