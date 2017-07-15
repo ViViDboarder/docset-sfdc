@@ -62,8 +62,37 @@ type TOCContent struct {
 	Content string
 }
 
-// Sqlite Struct
+// SupportedType contains information for generating indexes for types we care about
+type SupportedType struct {
+	// Exact match against an id
+	ID string
+	// Match against a prefix for the id
+	IDPrefix string
+	// Match against a prefix for the title
+	TitlePrefix string
+	// Match against a suffix for the title
+	TitleSuffix string
+	// Override Title
+	TitleOverride string
+	// Docset type
+	TypeName string
+	// Not sure...
+	AppendParents bool
+	// Indicates that this just contains other nodes and we don't want to index this
+	IsContainer bool
+	// Skip trimming of suffix from title
+	NoTrim bool
+	// Not sure...
+	ParseContent bool
+	// Should this name be pushed int othe path for child entries Eg. Class name prefix methods
+	PushName bool
+	// Should a namspace be prefixed to the database entry
+	ShowNamespace bool
+	// Should cascade type downwards
+	CascadeType bool
+}
 
+// Sqlite Struct
 // SearchIndex is the database table that indexes the docs
 type SearchIndex struct {
 	ID   int64  `db:id`
@@ -72,14 +101,38 @@ type SearchIndex struct {
 	Path string `db:path`
 }
 
+func (suppType SupportedType) matchesTitle(title string) bool {
+	match := false
+	if suppType.TitlePrefix != "" {
+		match = match || strings.HasPrefix(title, suppType.TitlePrefix)
+	}
+	if suppType.TitleSuffix != "" {
+		match = match || strings.HasSuffix(title, suppType.TitleSuffix)
+	}
+	return match
+}
+
+func (suppType SupportedType) matchesID(id string) bool {
+	if suppType.ID != "" && suppType.ID == id {
+		return true
+	}
+	if suppType.IDPrefix != "" {
+		return strings.HasPrefix(id, suppType.IDPrefix)
+	}
+	return false
+}
+
 // IsType indicates that the TOCEntry is of a given SupportedType
 // This is done by checking the suffix of the entry text
 func (entry TOCEntry) IsType(t SupportedType) bool {
-	return strings.HasSuffix(entry.Text, t.TitleSuffix)
+	return t.matchesTitle(entry.Text) || t.matchesID(entry.ID)
 }
 
 // CleanTitle trims known suffix from TOCEntry titles
 func (entry TOCEntry) CleanTitle(t SupportedType) string {
+	if t.TitleOverride != "" {
+		return t.TitleOverride
+	}
 	if t.NoTrim {
 		return entry.Text
 	}

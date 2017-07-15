@@ -1,30 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"log"
 )
-
-var shouldWarn = true
-
-// Custom errors
-type errorString struct {
-	message string
-}
-
-// Error retrievies the Error message from the error
-func (err errorString) Error() string {
-	return err.message
-}
-
-// NoWarn disables all warning output
-func WithoutWarning() {
-	shouldWarn = false
-}
 
 // NewCustomError creates a custom error using a string as the message
 func NewCustomError(message string) error {
-	return &errorString{message}
+	return errors.New(message)
 }
 
 // NewFormatedError creates a new error using Sprintf
@@ -40,14 +24,13 @@ func NewTypeNotFoundError(entry TOCEntry) error {
 // ExitIfError is a helper function for terminating if an error is not nil
 func ExitIfError(err error) {
 	if err != nil {
-		fmt.Println("ERROR: ", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }
 
 // WarnIfError is a helper function for terminating if an error is not nil
 func WarnIfError(err error) {
-	if err != nil && shouldWarn {
-		fmt.Println("WARNING: ", err)
+	if err != nil {
+		LogDebug(err.Error())
 	}
 }

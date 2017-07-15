@@ -1,20 +1,22 @@
-default: complete
+.PHONY: all clean-index package-apex clean-index package-vf clean-index package-combined
 
-complete: clean-index run-apex package-apex clean-index run-vf package-vf
+default: all
 
-run-apex:
+all: clean-index package-apex clean-index package-vf clean-index package-combined
+
+run-apex: clean-index
 	dep ensure
-	(cd SFDashC && go run *.go --silent apexcode)
+	go run ./SFDashC/*.go apexcode
 
-run-vf:
+run-vf: clean-index
 	dep ensure
-	(cd SFDashC && go run *.go --silent pages)
+	go run ./SFDashC/*.go pages
 
-run-combined:
+run-combined: clean-index
 	dep ensure
-	(cd SFDashC && go run *.go --silent apexcode pages)
+	go run ./SFDashC/*.go apexcode pages
 
-package-apex:
+package-apex: run-apex
 	$(eval name = Apex)
 	$(eval package = Salesforce $(name).docset)
 	$(eval version = $(shell cat SFDashC/apexcode-version.txt))
@@ -26,7 +28,7 @@ package-apex:
 	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
 	@echo "Docset generated!"
 
-package-vf:
+package-vf: run-vf
 	$(eval name = Pages)
 	$(eval package = Salesforce $(name).docset)
 	$(eval version = $(shell cat SFDashC/pages-version.txt))
@@ -38,7 +40,7 @@ package-vf:
 	cp SFDashC/docSet.dsidx "$(package)/Contents/Resources/"
 	@echo "Docset generated!"
 
-package-combined:
+package-combined: run-combined
 	$(eval name = Combined)
 	$(eval package = Salesforce $(name).docset)
 	mkdir -p "$(package)/Contents/Resources/Documents"

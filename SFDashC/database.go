@@ -37,8 +37,6 @@ func SaveSearchIndex(dbmap *gorp.DbMap, entry TOCEntry, entryType *SupportedType
 		name = entryHierarchy[len(entryHierarchy)-1] + "." + name
 	}
 
-	// fmt.Println("Storing: " + name)
-
 	si := SearchIndex{
 		Name: name,
 		Type: entryType.TypeName,
@@ -46,4 +44,5 @@ func SaveSearchIndex(dbmap *gorp.DbMap, entry TOCEntry, entryType *SupportedType
 	}
 
 	dbmap.Insert(&si)
+	LogDebug("%s is indexed as a %s", entry.Text, entryType.TypeName)
 }

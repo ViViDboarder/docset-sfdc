@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
@@ -22,13 +21,13 @@ var throttle = make(chan int, maxConcurrency)
 
 const maxConcurrency = 16
 
-func parseFlags() (locale string, deliverables []string, silent bool) {
+func parseFlags() (locale string, deliverables []string, debug bool) {
 	flag.StringVar(
 		&locale, "locale", "en-us",
 		"locale to use for documentation (default: en-us)",
 	)
 	flag.BoolVar(
-		&silent, "silent", false, "this flag supresses warning messages",
+		&debug, "debug", false, "this flag supresses warning messages",
 	)
 	flag.Parse()
 
@@ -66,7 +65,7 @@ func verifyVersion(toc *AtlasTOC) error {
 }
 
 func printSuccess(toc *AtlasTOC) {
-	fmt.Println("Success:", toc.DocTitle, "-", toc.Version.VersionText, "-", toc.Version.DocVersion)
+	LogInfo("Success: %s - %s - %s", toc.DocTitle, toc.Version.VersionText, toc.Version.DocVersion)
 }
 
 func saveMainContent(toc *AtlasTOC) {
@@ -106,9 +105,9 @@ func saveContentVersion(toc *AtlasTOC) {
 }
 
 func main() {
-	locale, deliverables, silent := parseFlags()
-	if silent {
-		WithoutWarning()
+	locale, deliverables, debug := parseFlags()
+	if debug {
+		SetLogLevel(DEBUG)
 	}
 
 	// Download CSS
@@ -133,10 +132,14 @@ func main() {
 		saveContentVersion(toc)
 
 		// Download each entry
+		/*
+		 * topLevelEntryIDs := map[string]bool{
+		 * 	"apex_dev_guide": true,
+		 * 	"pages_compref":  true,
+		 * }
+		 */
 		for _, entry := range toc.TOCEntries {
-			if entry.ID == "apex_dev_guide" || entry.ID == "pages_compref" {
-				processChildReferences(entry, nil, toc)
-			}
+			processChildReferences(entry, nil, toc)
 		}
 
 		printSuccess(toc)
@@ -145,121 +148,8 @@ func main() {
 	wg.Wait()
 }
 
-// SupportedType contains information for generating indexes for types we care about
-type SupportedType struct {
-	TypeName, TitleSuffix                                                     string
-	PushName, AppendParents, IsContainer, NoTrim, ShowNamespace, ParseContent bool
-}
-
-var supportedTypes = []SupportedType{
-	SupportedType{
-		TypeName:      "Method",
-		TitleSuffix:   "Methods",
-		AppendParents: true,
-		IsContainer:   true,
-		ShowNamespace: true,
-	},
-	SupportedType{
-		TypeName:      "Constructor",
-		TitleSuffix:   "Constructors",
-		AppendParents: true,
-		IsContainer:   true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Class",
-		TitleSuffix:   "Class",
-		PushName:      true,
-		AppendParents: true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Namespace",
-		TitleSuffix:   "Namespace",
-		PushName:      true,
-		AppendParents: true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Interface",
-		TitleSuffix:   "Interface",
-		PushName:      true,
-		AppendParents: true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Statement",
-		TitleSuffix:   "Statement",
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Enum",
-		TitleSuffix:   "Enum",
-		AppendParents: true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Property",
-		TitleSuffix:   "Properties",
-		AppendParents: true,
-		IsContainer:   true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Guide",
-		TitleSuffix:   "Example Implementation",
-		NoTrim:        true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Statement",
-		TitleSuffix:   "Statements",
-		NoTrim:        true,
-		AppendParents: false,
-		IsContainer:   true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Field",
-		TitleSuffix:   "Fields",
-		AppendParents: true,
-		PushName:      true,
-		IsContainer:   true,
-		ShowNamespace: false,
-	},
-	SupportedType{
-		TypeName:      "Exception",
-		TitleSuffix:   "Exceptions",
-		NoTrim:        true,
-		AppendParents: true,
-		ShowNamespace: false,
-		ParseContent:  true,
-	},
-	SupportedType{
-		TypeName:      "Constant",
-		TitleSuffix:   "Constants",
-		NoTrim:        true,
-		AppendParents: true,
-		ShowNamespace: false,
-		ParseContent:  true,
-	},
-	SupportedType{
-		TypeName:      "Class",
-		TitleSuffix:   "Class (Base Email Methods)",
-		PushName:      true,
-		AppendParents: true,
-		ShowNamespace: false,
-	},
-}
-
 func getEntryType(entry TOCEntry) (*SupportedType, error) {
-	if strings.HasPrefix(entry.ID, "pages_compref_") {
-		return &SupportedType{
-			TypeName: "Tag",
-			NoTrim:   true,
-		}, nil
-	}
-	for _, t := range supportedTypes {
+	for _, t := range SupportedTypes {
 		if entry.IsType(t) {
 			return &t, nil
 		}
@@ -275,7 +165,7 @@ func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *Atlas
 	}
 
 	for _, child := range entry.Children {
-		// fmt.Println("Processing: " + child.Text)
+		LogDebug("Processing: %s", child.Text)
 		var err error
 		var childType *SupportedType
 		if child.LinkAttr.Href != "" {
@@ -285,19 +175,24 @@ func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *Atlas
 			go downloadContent(child, toc, &wg)
 
 			childType, err = getEntryType(child)
-			if childType == nil && (entryType != nil && entryType.IsContainer) {
-				SaveSearchIndex(dbmap, child, entryType, toc)
-			} else if childType != nil && !childType.IsContainer {
+			if childType == nil && entryType != nil && (entryType.IsContainer || entryType.CascadeType) {
+				LogDebug("Parent was container or cascade, using parent type of %s", entryType.TypeName)
+				childType = entryType
+			}
+
+			if childType == nil {
+				WarnIfError(err)
+			} else if !childType.IsContainer {
 				SaveSearchIndex(dbmap, child, childType, toc)
 			} else {
-				WarnIfError(err)
+				LogDebug("%s is a container. Do not index", child.Text)
 			}
 		}
 		if len(child.Children) > 0 {
 			processChildReferences(child, childType, toc)
 		}
 	}
-	// fmt.Println("Done processing children for " + entry.Text)
+	LogDebug("Done processing children for %s", entry.Text)
 
 	if entryType != nil && entryType.PushName {
 		entryHierarchy = entryHierarchy[:len(entryHierarchy)-1]
