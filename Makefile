@@ -1,83 +1,57 @@
-.PHONY: all clean-index package-apex clean-index package-vf clean-index package-combined
-
+.PHONY: default
 default: all
 
-all: clean-index package-apex clean-index package-vf clean-index package-lightning clean-index package-combined
+.PHONY: all
+all: package-apex package-vf package-lightning
 
-run-apex: clean-index
+docset-gen:
 	dep ensure
-	go run ./SFDashC/*.go apexcode
+	go build -x -o docset-gen ./SFDashC/
 
-run-vf: clean-index
-	dep ensure
-	go run ./SFDashC/*.go pages
+.PHONY: run-apex
+run-apex: clean-index docset-gen
+	./docset-gen apexcode
 
-run-lightning: clean-index
-	dep ensure
-	go run ./SFDashC/*.go -debug lightning
+.PHONY: run-vf
+run-vf: clean-index docset-gen
+	./docset-gen pages
 
-run-combined: clean-index
-	dep ensure
-	go run ./SFDashC/*.go apexcode pages lightning
+.PHONY: run-lightning
+run-lightning: clean-index docset-gen
+	./docset-gen lightning
 
 package-apex: run-apex
-	$(eval name = Apex)
-	$(eval package = Salesforce $(name).docset)
-	$(eval version = $(shell cat ./build/apexcode-version.txt))
-	cat ./SFDashC/docset-apexcode.json | sed s/VERSION/$(version)/ > ./build/docset-apexcode.json
-	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r ./build/atlas.en-us.apexcode.meta "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
-	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
-	@echo "Docset generated!"
+	./package-docset.sh Apex
 
+.PHONY: package-vf
 package-vf: run-vf
-	$(eval name = Pages)
-	$(eval package = Salesforce $(name).docset)
-	$(eval version = $(shell cat ./build/pages-version.txt))
-	cat ./SFDashC/docset-pages.json | sed s/VERSION/$(version)/ > ./build/docset-pages.json
-	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r ./build/atlas.en-us.pages.meta "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
-	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
-	@echo "Docset generated!"
+	./package-docset.sh Pages
 
+.PHONY: package-lightning
 package-lightning: run-lightning
-	$(eval name = Lightning)
-	$(eval package = Salesforce $(name).docset)
-	$(eval version = $(shell cat ./build/lightning-version.txt))
-	cat ./SFDashC/docset-lightning.json | sed s/VERSION/$(version)/ > ./build/docset-lightning.json
-	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r ./build/atlas.en-us.lightning.meta "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
-	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
-	@echo "Docset generated!"
+	./package-docset.sh Lightning
 
-package-combined: run-combined
-	$(eval name = Combined)
-	$(eval package = Salesforce $(name).docset)
-	mkdir -p "$(package)/Contents/Resources/Documents"
-	cp -r ./build/*.meta "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
-	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
-	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
-	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
-	@echo "Docset generated!"
-
+.PHONY: archive
 archive:
 	find *.docset -depth 0 | xargs -I '{}' sh -c 'tar --exclude=".DS_Store" -czf "$$(echo {} | sed -e "s/\.[^.]*$$//" -e "s/ /_/").tgz" "{}"'
 	@echo "Archives created!"
 
+.PHONY: clean-index
 clean-index:
 	rm -f ./build/docSet.dsidx
 
-clean: clean-index
-	rm -fr ./build
+.PHONY: clean-package
+clean-package:
 	rm -fr *.docset
+
+.PHONY: clean-archive
+clean-archive:
 	rm -f *.tgz
+
+.PHONY: clean
+clean: clean-index clean-package clean-archive
+	rm -f docset-gen
+
+.PHONY: clean-build
+clean-build:
+	rm -fr ./build
