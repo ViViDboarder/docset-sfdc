@@ -14,3 +14,4 @@ syntax-highlighter.min.css
 # External Go dependencies
 vendor/
 build/
+.DS_Store

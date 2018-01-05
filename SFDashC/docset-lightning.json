@@ -1,13 +1,13 @@
 {
-    "name": "Salesforce Apex",
+    "name": "Salesforce Lightning",
     "version": "VERSION",
-    "archive": "Salesforce_Apex.tgz",
+    "archive": "Salesforce_Lightning.tgz",
     "author": {
         "name": "ViViDboarder",
         "link": "https://github.com/ViViDboarder"
     },
     "aliases": [
-        "apex",
+        "lightning",
         "salesforce",
         "sfdc"
     ],

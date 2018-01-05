@@ -8,9 +8,10 @@ import (
 const (
 	prefix = "SFDashC"
 	// Log Levels
-	ERROR = iota
-	INFO  = iota
-	DEBUG = iota
+	ERROR   = iota
+	WARNING = iota
+	INFO    = iota
+	DEBUG   = iota
 )
 
 var logLevel int
@@ -23,6 +24,8 @@ func getLevelText() string {
 	switch logLevel {
 	case ERROR:
 		return "ERROR"
+	case WARNING:
+		return "WARNING"
 	case INFO:
 		return "INFO"
 	case DEBUG:
@@ -56,6 +59,12 @@ func Log(level int, format string, a ...interface{}) {
 // It is recommended to use log.Fatal() instead since it will handle exits for you
 func LogError(format string, a ...interface{}) {
 	Log(ERROR, format, a...)
+}
+
+// LogInfo will print a warning message
+// If the level is greater than the maximum log level, it will not print
+func LogWarning(format string, a ...interface{}) {
+	Log(WARNING, format, a...)
 }
 
 // LogInfo will print an info message

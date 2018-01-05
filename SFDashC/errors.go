@@ -31,6 +31,6 @@ func ExitIfError(err error) {
 // WarnIfError is a helper function for terminating if an error is not nil
 func WarnIfError(err error) {
 	if err != nil {
-		LogDebug(err.Error())
+		LogWarning(err.Error())
 	}
 }

@@ -78,8 +78,10 @@ type SupportedType struct {
 	TypeName string
 	// Not sure...
 	AppendParents bool
-	// Indicates that this just contains other nodes and we don't want to index this
+	// Indicates that this just contains other nodes and we don't want to index this node
 	IsContainer bool
+	// Indicates that this and all nodes underneith should be hidden
+	IsHidden bool
 	// Skip trimming of suffix from title
 	NoTrim bool
 	// Not sure...

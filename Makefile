@@ -2,7 +2,7 @@
 
 default: all
 
-all: clean-index package-apex clean-index package-vf clean-index package-combined
+all: clean-index package-apex clean-index package-vf clean-index package-lightning clean-index package-combined
 
 run-apex: clean-index
 	dep ensure
@@ -12,9 +12,13 @@ run-vf: clean-index
 	dep ensure
 	go run ./SFDashC/*.go pages
 
+run-lightning: clean-index
+	dep ensure
+	go run ./SFDashC/*.go -debug lightning
+
 run-combined: clean-index
 	dep ensure
-	go run ./SFDashC/*.go apexcode pages
+	go run ./SFDashC/*.go apexcode pages lightning
 
 package-apex: run-apex
 	$(eval name = Apex)
@@ -36,6 +40,19 @@ package-vf: run-vf
 	cat ./SFDashC/docset-pages.json | sed s/VERSION/$(version)/ > ./build/docset-pages.json
 	mkdir -p "$(package)/Contents/Resources/Documents"
 	cp -r ./build/atlas.en-us.pages.meta "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
+	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
+	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"
+	cp ./build/docSet.dsidx "$(package)/Contents/Resources/"
+	@echo "Docset generated!"
+
+package-lightning: run-lightning
+	$(eval name = Lightning)
+	$(eval package = Salesforce $(name).docset)
+	$(eval version = $(shell cat ./build/lightning-version.txt))
+	cat ./SFDashC/docset-lightning.json | sed s/VERSION/$(version)/ > ./build/docset-lightning.json
+	mkdir -p "$(package)/Contents/Resources/Documents"
+	cp -r ./build/atlas.en-us.lightning.meta "$(package)/Contents/Resources/Documents/"
 	cp ./build/*.html "$(package)/Contents/Resources/Documents/"
 	cp ./build/*.css "$(package)/Contents/Resources/Documents/"
 	cp ./SFDashC/Info-$(name).plist "$(package)/Contents/Info.plist"

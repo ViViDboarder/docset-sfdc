@@ -33,7 +33,7 @@ func parseFlags() (locale string, deliverables []string, debug bool) {
 	flag.Parse()
 
 	// All other args are for deliverables
-	// apexcode or pages
+	// apexcode, pages, or lightening
 	deliverables = flag.Args()
 	return
 }
@@ -41,6 +41,7 @@ func parseFlags() (locale string, deliverables []string, debug bool) {
 // getTOC Retrieves the TOC JSON and Unmarshals it
 func getTOC(locale string, deliverable string) (toc *AtlasTOC, err error) {
 	var tocURL = fmt.Sprintf("https://developer.salesforce.com/docs/get_document/atlas.%s.%s.meta", locale, deliverable)
+	LogDebug("TOC URL: %s", tocURL)
 	resp, err := http.Get(tocURL)
 	ExitIfError(err)
 
@@ -51,13 +52,18 @@ func getTOC(locale string, deliverable string) (toc *AtlasTOC, err error) {
 
 	// Load into Struct
 	toc = new(AtlasTOC)
+	LogDebug("TOC JSON: %s", string(contents))
 	err = json.Unmarshal([]byte(contents), toc)
 	return
 }
 
 // verifyVersion ensures that the version retrieved is the latest
 func verifyVersion(toc *AtlasTOC) error {
+	// jsonVersion, _ := json.Marshal(toc.Version)
+	// LogDebug("toc.Version" + string(jsonVersion))
 	currentVersion := toc.Version.DocVersion
+	// jsonAvailVersions, _ := json.Marshal(toc.AvailableVersions)
+	// LogDebug("toc.AvailableVersions" + string(jsonAvailVersions))
 	topVersion := toc.AvailableVersions[0].DocVersion
 	if currentVersion != topVersion {
 		return NewFormatedError("verifyVersion: retrieved version is not the latest. Found %s, latest is %s", currentVersion, topVersion)
@@ -109,42 +115,35 @@ func saveContentVersion(toc *AtlasTOC) {
 	ExitIfError(err)
 }
 
-func main() {
-	locale, deliverables, debug := parseFlags()
-	if debug {
-		SetLogLevel(DEBUG)
+func downloadCSS(fileName string, wg *sync.WaitGroup) {
+	downloadFile(cssBaseURL+"/"+fileName, fileName, wg)
+}
+
+func downloadFile(url string, fileName string, wg *sync.WaitGroup) {
+	if wg != nil {
+		defer wg.Done()
 	}
 
-	// Download CSS
-	for _, cssFile := range cssFiles {
-		throttle <- 1
-		wg.Add(1)
-		go downloadCSS(cssFile, &wg)
+	filePath := filepath.Join(buildDir, fileName)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Dir(filePath), 0755)
+		ExitIfError(err)
+
+		ofile, err := os.Create(filePath)
+		ExitIfError(err)
+		defer ofile.Close()
+
+		response, err := http.Get(url)
+		ExitIfError(err)
+		defer response.Body.Close()
+
+		_, err = io.Copy(ofile, response.Body)
+		ExitIfError(err)
 	}
 
-	// Init the Sqlite db
-	dbmap = InitDb(buildDir)
-	err := dbmap.TruncateTables()
-	ExitIfError(err)
-
-	for _, deliverable := range deliverables {
-		toc, err := getTOC(locale, deliverable)
-
-		err = verifyVersion(toc)
-		WarnIfError(err)
-
-		saveMainContent(toc)
-		saveContentVersion(toc)
-
-		// Download each entry
-		for _, entry := range toc.TOCEntries {
-			processChildReferences(entry, nil, toc)
-		}
-
-		printSuccess(toc)
+	if wg != nil {
+		<-throttle
 	}
-
-	wg.Wait()
 }
 
 func getEntryType(entry TOCEntry) (*SupportedType, error) {
@@ -156,36 +155,56 @@ func getEntryType(entry TOCEntry) (*SupportedType, error) {
 	return nil, NewTypeNotFoundError(entry)
 }
 
+// processEntryReference downloads html and indexes a toc item
+func processEntryReference(entry TOCEntry, entryType *SupportedType, toc *AtlasTOC) {
+	LogDebug("Processing: %s", entry.Text)
+	throttle <- 1
+	wg.Add(1)
+
+	go downloadContent(entry, toc, &wg)
+
+	if entryType == nil {
+		LogDebug("No entry type for %s. Cannot index", entry.Text)
+	} else if entryType.IsContainer || entryType.IsHidden {
+		LogDebug("%s is a container or is hidden. Do not index", entry.Text)
+	} else {
+		SaveSearchIndex(dbmap, entry, entryType, toc)
+	}
+}
+
+// entryHierarchy allows breadcrumb naming
 var entryHierarchy []string
 
+// processChildReferences iterates through all child toc items, cascading types, and indexes them
 func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *AtlasTOC) {
 	if entryType != nil && entryType.PushName {
 		entryHierarchy = append(entryHierarchy, entry.CleanTitle(*entryType))
 	}
 
 	for _, child := range entry.Children {
-		LogDebug("Processing: %s", child.Text)
+		LogDebug("Reading child: %s", child.Text)
 		var err error
 		var childType *SupportedType
+		// Skip anything without an HTML page
 		if child.LinkAttr.Href != "" {
-			throttle <- 1
-			wg.Add(1)
-
-			go downloadContent(child, toc, &wg)
-
 			childType, err = getEntryType(child)
 			if childType == nil && entryType != nil && (entryType.IsContainer || entryType.CascadeType) {
+				// No child type, and parent is set to cascade
 				LogDebug("Parent was container or cascade, using parent type of %s", entryType.TypeName)
 				childType = entryType
+				childType.IsContainer = false
+			} else if childType != nil && entryType != nil {
+				// We didn't cascade in full, but some features are still hereditary
+				if entryType.IsHidden {
+					childType.IsHidden = true
+				}
 			}
-
-			if childType == nil {
+			if childType == nil && err != nil {
 				WarnIfError(err)
-			} else if !childType.IsContainer {
-				SaveSearchIndex(dbmap, child, childType, toc)
-			} else {
-				LogDebug("%s is a container. Do not index", child.Text)
 			}
+			processEntryReference(child, childType, toc)
+		} else {
+			LogDebug("%s has no link. Skipping", child.Text)
 		}
 		if len(child.Children) > 0 {
 			processChildReferences(child, childType, toc)
@@ -198,6 +217,7 @@ func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *Atlas
 	}
 }
 
+// downloadContent will download the html file for a given entry
 func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -233,26 +253,48 @@ func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 	<-throttle
 }
 
-func downloadCSS(fileName string, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	filePath := filepath.Join(buildDir, fileName)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		err = os.MkdirAll(filepath.Dir(filePath), 0755)
-		ExitIfError(err)
-
-		ofile, err := os.Create(filePath)
-		ExitIfError(err)
-		defer ofile.Close()
-
-		cssURL := cssBaseURL + "/" + fileName
-		response, err := http.Get(cssURL)
-		ExitIfError(err)
-		defer response.Body.Close()
-
-		_, err = io.Copy(ofile, response.Body)
-		ExitIfError(err)
+func main() {
+	LogInfo("Starting...")
+	locale, deliverables, debug := parseFlags()
+	if debug {
+		SetLogLevel(DEBUG)
 	}
 
-	<-throttle
+	// Download CSS
+	for _, cssFile := range cssFiles {
+		throttle <- 1
+		wg.Add(1)
+		go downloadCSS(cssFile, &wg)
+	}
+
+	// Download icon
+	go downloadFile("https://developer.salesforce.com/resources2/favicon.ico", "icon.ico", nil)
+
+	// Init the Sqlite db
+	dbmap = InitDb(buildDir)
+	err := dbmap.TruncateTables()
+	ExitIfError(err)
+
+	for _, deliverable := range deliverables {
+		toc, err := getTOC(locale, deliverable)
+
+		err = verifyVersion(toc)
+		WarnIfError(err)
+
+		saveMainContent(toc)
+		saveContentVersion(toc)
+
+		// Download each entry
+		for _, entry := range toc.TOCEntries {
+			entryType, err := getEntryType(entry)
+			if entryType != nil && err == nil {
+				processEntryReference(entry, entryType, toc)
+			}
+			processChildReferences(entry, entryType, toc)
+		}
+
+		printSuccess(toc)
+	}
+
+	wg.Wait()
 }

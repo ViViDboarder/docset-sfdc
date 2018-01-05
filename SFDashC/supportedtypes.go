@@ -1,6 +1,25 @@
 package main
 
 var SupportedTypes = []SupportedType{
+	// ID Based overrides should come first
+	SupportedType{
+		ID:       "ref_tag_set_attr_intf",
+		TypeName: "Guide",
+	},
+	SupportedType{
+		ID:       "namespaces_intro",
+		TypeName: "Guide",
+	},
+	SupportedType{
+		ID:       "namespaces_using_organization",
+		TypeName: "Guide",
+	},
+	SupportedType{
+		TypeName:    "Guide",
+		ID:          "apex_intro_get_started",
+		CascadeType: true,
+	},
+	// Apex types
 	SupportedType{
 		TypeName:      "Method",
 		TitleSuffix:   "Methods",
@@ -113,6 +132,7 @@ var SupportedTypes = []SupportedType{
 		AppendParents: false,
 		ShowNamespace: false,
 	},
+	// VF Types
 	SupportedType{
 		IDPrefix: "pages_compref_",
 		TypeName: "Tag",
@@ -170,9 +190,63 @@ var SupportedTypes = []SupportedType{
 		TypeName: "Guide",
 		IDPrefix: "pages_variables_operators",
 	},
+	// Aurora components
+	SupportedType{
+		TypeName:    "Tag",
+		ID:          "aura_compref",
+		IsContainer: true,
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName:    "Tag",
+		ID:          "ref_messaging",
+		IsContainer: true,
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName:    "Interface",
+		ID:          "ref_interfaces",
+		IsContainer: true,
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName:    "Event",
+		ID:          "ref_events",
+		IsContainer: true,
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName:    "Event",
+		ID:          "ref_events_aura",
+		IsContainer: true,
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "debug_intro",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "components_using",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "components_overview",
+	},
 	SupportedType{
 		TypeName:    "Guide",
-		ID:          "apex_intro_get_started",
+		IDPrefix:    "qs_intro",
+		IsContainer: true,
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "events_intro",
+	},
+	SupportedType{
+		TypeName:    "Guide",
+		ID:          "apps_intro",
+		IsHidden:    true,
 		CascadeType: true,
 	},
 }
