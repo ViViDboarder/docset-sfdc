@@ -167,7 +167,7 @@ func getEntryType(entry TOCEntry, parentType SupportedType) (SupportedType, erro
 	}
 
 	childType, err := lookupEntryType(entry)
-	if err != nil && parentType.CascadeType {
+	if err != nil && parentType.ShouldCascade() {
 		childType = parentType.CreateChildType()
 		err = nil
 	}

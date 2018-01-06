@@ -20,3 +20,4 @@ To Do
 -----
 
  - [ ] Now that new `ForceCascadeType` is available, some of the entries in `./SFDashC/supportedtypes.go` can be simplified
+ - [ ] Allow archiving of multiple versions and fetching pre-releases

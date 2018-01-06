@@ -1,7 +1,7 @@
 {
     "name": "Salesforce Visualforce",
     "version": "VERSION",
-    "archive": "Salesforce_Pages.tgz",
+    "archive": "Salesforce_Visualforce.tgz",
     "author": {
         "name": "ViViDboarder",
         "link": "https://github.com/ViViDboarder"

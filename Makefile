@@ -7,36 +7,44 @@ all: package-apex package-vf package-lightning
 vendor:
 	dep ensure
 
-docset-gen: vendor
-	go build -i -x -o docset-gen ./SFDashC/
-
 .PHONY: run-apex
-run-apex: clean-index docset-gen
-	./docset-gen apexcode
+run-apex: clean-index vendor
+	go run ./SFDashC/*.go apexcode
 
 .PHONY: run-vf
-run-vf: clean-index docset-gen
-	./docset-gen pages
+run-vf: clean-index vendor
+	go run ./SFDashC/*.go  pages
 
 .PHONY: run-lightning
-run-lightning: clean-index docset-gen
-	./docset-gen lightning
+run-lightning: clean-index vendor
+	go run ./SFDashC/*.go lightning
 
+.PHONY: package-apex
 package-apex: run-apex
-	./package-docset.sh Apex
+	./package-docset.sh apexcode
 
 .PHONY: package-vf
 package-vf: run-vf
-	./package-docset.sh Pages
+	./package-docset.sh pages
 
 .PHONY: package-lightning
 package-lightning: run-lightning
-	./package-docset.sh Lightning
+	./package-docset.sh lightning
 
-.PHONY: archive
-archive:
-	find *.docset -depth 0 | xargs -I '{}' sh -c 'tar --exclude=".DS_Store" -czf "$$(echo {} | sed -e "s/\.[^.]*$$//" -e "s/ /_/").tgz" "{}"'
-	@echo "Archives created!"
+.PHONY: archive-apex
+archive-apex: package-apex
+	./archive-docset.sh apexcode
+
+.PHONY: archive-vf
+archive-vf: package-vf
+	./archive-docset.sh pages
+
+.PHONY: archive-lightning
+archive-lightning: package-lightning
+	./archive-docset.sh lightning
+
+.PHONY: archive-all
+archive-all:  archive-apex archive-vf archive-lightning
 
 .PHONY: clean-index
 clean-index:
@@ -49,10 +57,10 @@ clean-package:
 .PHONY: clean-archive
 clean-archive:
 	rm -f *.tgz
+	rm -fr ./archive
 
 .PHONY: clean
 clean: clean-index clean-package clean-archive
-	rm -f docset-gen
 
 .PHONY: clean-build
 clean-build:

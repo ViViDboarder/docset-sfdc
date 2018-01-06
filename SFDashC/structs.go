@@ -87,7 +87,7 @@ type SupportedType struct {
 	// Should a namspace be prefixed to the database entry
 	ShowNamespace bool
 	// Indicates that this just contains other nodes and we don't want to index this node
-	// This is not hereditary
+	// This type will cascade down one level, but IsContainer itself is not hereditary
 	IsContainer bool
 	// Indicates that this and all nodes underneith should be hidden
 	IsHidden bool
@@ -125,6 +125,11 @@ func (suppType SupportedType) matchesID(id string) bool {
 		return strings.HasPrefix(id, suppType.IDPrefix)
 	}
 	return false
+}
+
+// ShouldCascade returns if this type should be cascaded down to the child
+func (suppType SupportedType) ShouldCascade() bool {
+	return suppType.ForceCascadeType || suppType.CascadeType || suppType.IsContainer
 }
 
 // CreateChildType returns a child type inheriting the current type
