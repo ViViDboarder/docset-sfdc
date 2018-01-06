@@ -78,10 +78,6 @@ type SupportedType struct {
 	TypeName string
 	// Not sure...
 	AppendParents bool
-	// Indicates that this just contains other nodes and we don't want to index this node
-	IsContainer bool
-	// Indicates that this and all nodes underneith should be hidden
-	IsHidden bool
 	// Skip trimming of suffix from title
 	NoTrim bool
 	// Not sure...
@@ -90,8 +86,15 @@ type SupportedType struct {
 	PushName bool
 	// Should a namspace be prefixed to the database entry
 	ShowNamespace bool
-	// Should cascade type downwards
+	// Indicates that this just contains other nodes and we don't want to index this node
+	// This is not hereditary
+	IsContainer bool
+	// Indicates that this and all nodes underneith should be hidden
+	IsHidden bool
+	// Should cascade type downwards unless the child has it's own type
 	CascadeType bool
+	// Should cascade type downwards, even if children have their own type
+	ForceCascadeType bool
 }
 
 // Sqlite Struct
@@ -103,17 +106,17 @@ type SearchIndex struct {
 	Path string `db:path`
 }
 
+// matchesTitle returns true if the title matches that of the specified type
 func (suppType SupportedType) matchesTitle(title string) bool {
 	match := false
-	if suppType.TitlePrefix != "" {
-		match = match || strings.HasPrefix(title, suppType.TitlePrefix)
-	}
-	if suppType.TitleSuffix != "" {
-		match = match || strings.HasSuffix(title, suppType.TitleSuffix)
-	}
+	match = match || (suppType.TitlePrefix != "" &&
+		strings.HasPrefix(title, suppType.TitlePrefix))
+	match = match || (suppType.TitleSuffix != "" &&
+		strings.HasSuffix(title, suppType.TitleSuffix))
 	return match
 }
 
+// matchesID returns true if the ID matches that of the specified type
 func (suppType SupportedType) matchesID(id string) bool {
 	if suppType.ID != "" && suppType.ID == id {
 		return true
@@ -122,6 +125,22 @@ func (suppType SupportedType) matchesID(id string) bool {
 		return strings.HasPrefix(id, suppType.IDPrefix)
 	}
 	return false
+}
+
+// CreateChildType returns a child type inheriting the current type
+func (suppType SupportedType) CreateChildType() SupportedType {
+	// Reset values that do not cascade
+	suppType.IsContainer = false
+	return suppType
+}
+
+func (suppType SupportedType) ShouldSkipIndex() bool {
+	return suppType.IsContainer || suppType.IsHidden
+}
+
+// IsValidType returns whether or not this is a valid type
+func (suppType SupportedType) IsValidType() bool {
+	return suppType.TypeName != ""
 }
 
 // IsType indicates that the TOCEntry is of a given SupportedType
@@ -173,14 +192,15 @@ func (entry TOCEntry) GetContent(toc *AtlasTOC) (content *TOCContent, err error)
 		toc.Version.DocVersion,
 	)
 
-	// fmt.Println(url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return
 	}
 
 	// Read the downloaded JSON
-	defer resp.Body.Close()
+	defer func() {
+		ExitIfError(resp.Body.Close())
+	}()
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return

@@ -9,12 +9,14 @@ Everything is wrapped with a Makefile and can be completely built by simply exec
 
 That's it!
 
-It will generate 3 docsets: Salesforce Apex, Salesforce Visualforce, and Salesforce Combined
+It will generate 3 docsets: Salesforce Apex, Salesforce Visualforce, and Salesforce Lightning
 
 Dependencies
 ------------
 
-Currently these are not auto resolved. You must install the following:
+All dependencies are being managed by [dep](https://github.com/golang/dep). Dep must be installed for the vendor folder to be built.
 
-* github.com/coopernurse/gorp
-* github.com/mattn/go-sqlite3
+To Do
+-----
+
+ - [ ] Now that new `ForceCascadeType` is available, some of the entries in `./SFDashC/supportedtypes.go` can be simplified

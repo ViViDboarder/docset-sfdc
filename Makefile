@@ -4,9 +4,11 @@ default: all
 .PHONY: all
 all: package-apex package-vf package-lightning
 
-docset-gen:
+vendor:
 	dep ensure
-	go build -x -o docset-gen ./SFDashC/
+
+docset-gen: vendor
+	go build -i -x -o docset-gen ./SFDashC/
 
 .PHONY: run-apex
 run-apex: clean-index docset-gen
@@ -55,3 +57,10 @@ clean: clean-index clean-package clean-archive
 .PHONY: clean-build
 clean-build:
 	rm -fr ./build
+
+.PHONY: clean-vendor
+clean-vendor:
+	rm -fr ./vendor
+
+.PHONY: clean-all
+clean-all: clean clean-build clean-vendor

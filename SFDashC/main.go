@@ -46,7 +46,9 @@ func getTOC(locale string, deliverable string) (toc *AtlasTOC, err error) {
 	ExitIfError(err)
 
 	// Read the downloaded JSON
-	defer resp.Body.Close()
+	defer func() {
+		ExitIfError(resp.Body.Close())
+	}()
 	contents, err := ioutil.ReadAll(resp.Body)
 	ExitIfError(err)
 
@@ -91,7 +93,9 @@ func saveMainContent(toc *AtlasTOC) {
 		ofile, err := os.Create(filePath)
 		ExitIfError(err)
 
-		defer ofile.Close()
+		defer func() {
+			ExitIfError(ofile.Close())
+		}()
 		_, err = ofile.WriteString(
 			"<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />" +
 				content,
@@ -100,6 +104,7 @@ func saveMainContent(toc *AtlasTOC) {
 	}
 }
 
+// saveContentVersion will retrieve the version number from the TOC and save that to a text file
 func saveContentVersion(toc *AtlasTOC) {
 	filePath := fmt.Sprintf("%s-version.txt", toc.Deliverable)
 	// Prepend build dir
@@ -110,15 +115,20 @@ func saveContentVersion(toc *AtlasTOC) {
 	ofile, err := os.Create(filePath)
 	ExitIfError(err)
 
-	defer ofile.Close()
+	defer func() {
+		ExitIfError(ofile.Close())
+	}()
 	_, err = ofile.WriteString(toc.Version.DocVersion)
 	ExitIfError(err)
 }
 
+// downloadCSS will download a CSS file using the CSS base URL
 func downloadCSS(fileName string, wg *sync.WaitGroup) {
 	downloadFile(cssBaseURL+"/"+fileName, fileName, wg)
 }
 
+// downloadFile will download n aribtrary file to a given file path
+// It will also handle throttling if a WaitGroup is provided
 func downloadFile(url string, fileName string, wg *sync.WaitGroup) {
 	if wg != nil {
 		defer wg.Done()
@@ -131,11 +141,15 @@ func downloadFile(url string, fileName string, wg *sync.WaitGroup) {
 
 		ofile, err := os.Create(filePath)
 		ExitIfError(err)
-		defer ofile.Close()
+		defer func() {
+			ExitIfError(ofile.Close())
+		}()
 
 		response, err := http.Get(url)
 		ExitIfError(err)
-		defer response.Body.Close()
+		defer func() {
+			ExitIfError(response.Body.Close())
+		}()
 
 		_, err = io.Copy(ofile, response.Body)
 		ExitIfError(err)
@@ -146,27 +160,43 @@ func downloadFile(url string, fileName string, wg *sync.WaitGroup) {
 	}
 }
 
-func getEntryType(entry TOCEntry) (*SupportedType, error) {
+// getEntryType will return an entry type that should be used for a given entry and it's parent's type
+func getEntryType(entry TOCEntry, parentType SupportedType) (SupportedType, error) {
+	if parentType.ForceCascadeType {
+		return parentType.CreateChildType(), nil
+	}
+
+	childType, err := lookupEntryType(entry)
+	if err != nil && parentType.CascadeType {
+		childType = parentType.CreateChildType()
+		err = nil
+	}
+
+	return childType, err
+}
+
+// lookupEntryType returns the matching SupportedType for a given entry or returns an error
+func lookupEntryType(entry TOCEntry) (SupportedType, error) {
 	for _, t := range SupportedTypes {
 		if entry.IsType(t) {
-			return &t, nil
+			return t, nil
 		}
 	}
-	return nil, NewTypeNotFoundError(entry)
+	return SupportedType{}, NewTypeNotFoundError(entry)
 }
 
 // processEntryReference downloads html and indexes a toc item
-func processEntryReference(entry TOCEntry, entryType *SupportedType, toc *AtlasTOC) {
+func processEntryReference(entry TOCEntry, entryType SupportedType, toc *AtlasTOC) {
 	LogDebug("Processing: %s", entry.Text)
 	throttle <- 1
 	wg.Add(1)
 
 	go downloadContent(entry, toc, &wg)
 
-	if entryType == nil {
-		LogDebug("No entry type for %s. Cannot index", entry.Text)
-	} else if entryType.IsContainer || entryType.IsHidden {
+	if entryType.ShouldSkipIndex() {
 		LogDebug("%s is a container or is hidden. Do not index", entry.Text)
+	} else if !entryType.IsValidType() {
+		LogDebug("No entry type for %s. Cannot index", entry.Text)
 	} else {
 		SaveSearchIndex(dbmap, entry, entryType, toc)
 	}
@@ -176,33 +206,23 @@ func processEntryReference(entry TOCEntry, entryType *SupportedType, toc *AtlasT
 var entryHierarchy []string
 
 // processChildReferences iterates through all child toc items, cascading types, and indexes them
-func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *AtlasTOC) {
-	if entryType != nil && entryType.PushName {
-		entryHierarchy = append(entryHierarchy, entry.CleanTitle(*entryType))
+func processChildReferences(entry TOCEntry, entryType SupportedType, toc *AtlasTOC) {
+	if entryType.PushName {
+		entryHierarchy = append(entryHierarchy, entry.CleanTitle(entryType))
 	}
 
 	for _, child := range entry.Children {
 		LogDebug("Reading child: %s", child.Text)
 		var err error
-		var childType *SupportedType
+		var childType SupportedType
 		// Skip anything without an HTML page
 		if child.LinkAttr.Href != "" {
-			childType, err = getEntryType(child)
-			if childType == nil && entryType != nil && (entryType.IsContainer || entryType.CascadeType) {
-				// No child type, and parent is set to cascade
-				LogDebug("Parent was container or cascade, using parent type of %s", entryType.TypeName)
-				childType = entryType
-				childType.IsContainer = false
-			} else if childType != nil && entryType != nil {
-				// We didn't cascade in full, but some features are still hereditary
-				if entryType.IsHidden {
-					childType.IsHidden = true
-				}
-			}
-			if childType == nil && err != nil {
+			childType, err = getEntryType(child, entryType)
+			if err == nil {
+				processEntryReference(child, childType, toc)
+			} else {
 				WarnIfError(err)
 			}
-			processEntryReference(child, childType, toc)
 		} else {
 			LogDebug("%s has no link. Skipping", child.Text)
 		}
@@ -212,7 +232,7 @@ func processChildReferences(entry TOCEntry, entryType *SupportedType, toc *Atlas
 	}
 	LogDebug("Done processing children for %s", entry.Text)
 
-	if entryType != nil && entryType.PushName {
+	if entryType.PushName {
 		entryHierarchy = entryHierarchy[:len(entryHierarchy)-1]
 	}
 }
@@ -244,7 +264,9 @@ func downloadContent(entry TOCEntry, toc *AtlasTOC, wg *sync.WaitGroup) {
 		}
 		header += "<style>body { padding: 15px; }</style>"
 
-		defer ofile.Close()
+		defer func() {
+			ExitIfError(ofile.Close())
+		}()
 		_, err = ofile.WriteString(
 			header + content.Content,
 		)
@@ -286,8 +308,8 @@ func main() {
 
 		// Download each entry
 		for _, entry := range toc.TOCEntries {
-			entryType, err := getEntryType(entry)
-			if entryType != nil && err == nil {
+			entryType, err := lookupEntryType(entry)
+			if err == nil {
 				processEntryReference(entry, entryType, toc)
 			}
 			processChildReferences(entry, entryType, toc)

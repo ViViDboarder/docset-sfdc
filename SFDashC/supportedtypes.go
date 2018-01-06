@@ -19,6 +19,43 @@ var SupportedTypes = []SupportedType{
 		ID:          "apex_intro_get_started",
 		CascadeType: true,
 	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "pages_flows_customize_runtime_ui",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "pages_quick_start_controller_shell",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "pages_email_custom_controller",
+	},
+	SupportedType{
+		TypeName:    "Guide",
+		IDPrefix:    "apex_qs_",
+		CascadeType: true,
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "apex_process_plugin_using",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "apex_platform_cache_builder",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "apex_classes_restful_http_testing_httpcalloutmock",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "apex_classes_namespaces_and_invoking_methods",
+	},
+	SupportedType{
+		TypeName: "Guide",
+		ID:       "apex_classes_schema_namespace_using",
+	},
 	// Apex types
 	SupportedType{
 		TypeName:      "Method",
@@ -44,6 +81,13 @@ var SupportedTypes = []SupportedType{
 	SupportedType{
 		TypeName:      "Namespace",
 		TitleSuffix:   "Namespace",
+		PushName:      true,
+		AppendParents: true,
+		ShowNamespace: false,
+	},
+	SupportedType{
+		TypeName:      "Interface",
+		TitleSuffix:   "Global Interface",
 		PushName:      true,
 		AppendParents: true,
 		ShowNamespace: false,
