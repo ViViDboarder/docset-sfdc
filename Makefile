@@ -1,22 +1,20 @@
-.PHONY: default
+.PHONY: default test
 default: all
 
 .PHONY: all
 all: package-apex package-vf package-lightning
 
-vendor:
-	dep ensure
 
 .PHONY: run-apex
-run-apex: clean-index vendor
+run-apex: clean-index
 	go run ./SFDashC/*.go apexcode
 
 .PHONY: run-vf
-run-vf: clean-index vendor
+run-vf: clean-index
 	go run ./SFDashC/*.go  pages
 
 .PHONY: run-lightning
-run-lightning: clean-index vendor
+run-lightning: clean-index
 	go run ./SFDashC/*.go lightning
 
 .PHONY: package-apex
@@ -66,9 +64,5 @@ clean: clean-index clean-package clean-archive
 clean-build:
 	rm -fr ./build
 
-.PHONY: clean-vendor
-clean-vendor:
-	rm -fr ./vendor
-
 .PHONY: clean-all
-clean-all: clean clean-build clean-vendor
+clean-all: clean clean-build
