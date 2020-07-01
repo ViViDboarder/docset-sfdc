@@ -19,30 +19,42 @@ run-lightning: clean-index
 
 .PHONY: package-apex
 package-apex: run-apex
-	./package-docset.sh apexcode
+	./scripts/package-docset.sh apexcode
 
 .PHONY: package-vf
 package-vf: run-vf
-	./package-docset.sh pages
+	./scripts/package-docset.sh pages
 
 .PHONY: package-lightning
 package-lightning: run-lightning
-	./package-docset.sh lightning
+	./scripts/package-docset.sh lightning
 
 .PHONY: archive-apex
 archive-apex: package-apex
-	./archive-docset.sh apexcode
+	./scripts/archive-docset.sh apexcode
+
+./archive/Salesforce_Apex: archive-apex
 
 .PHONY: archive-vf
 archive-vf: package-vf
-	./archive-docset.sh pages
+	./scripts/archive-docset.sh pages
+
+./archive/Salesforce_Visualforce: archive-vf
 
 .PHONY: archive-lightning
-archive-lightning: package-lightning
-	./archive-docset.sh lightning
+./archive-lightning: package-lightning
+	./scripts/archive-docset.sh lightning
+
+./archive/Salesforce_Lightning: archive-lightning
 
 .PHONY: archive-all
-archive-all:  archive-apex archive-vf archive-lightning
+archive-all: archive-apex archive-vf # archive-lightning Lightning package isn't functional
+
+./archive: archive-all
+
+.PHONY: create-pr
+create-pr: ./archive
+	./scripts/create-pr.sh
 
 .PHONY: clean-index
 clean-index:
@@ -64,5 +76,9 @@ clean: clean-index clean-package clean-archive
 clean-build:
 	rm -fr ./build
 
+.PHONY: clean-pr
+clean-pr:
+	rm -fr ./repotmp
+
 .PHONY: clean-all
-clean-all: clean clean-build
+clean-all: clean clean-build clean-pr

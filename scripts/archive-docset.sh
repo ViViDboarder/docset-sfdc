@@ -10,7 +10,8 @@ deliverable=$1
 
 function get_friendly_name {
     local deliverable=$1
-    local name="$(tr '[:lower:]' '[:upper:]' <<< "${deliverable:0:1}")${deliverable:1}"
+    local name
+    name="$(tr '[:lower:]' '[:upper:]' <<< "${deliverable:0:1}")${deliverable:1}"
     case "$deliverable" in
         "apexcode")
             name="Apex"
@@ -34,14 +35,17 @@ function get_icon_name {
 }
 
 function main {
-    local name=$(get_friendly_name "$deliverable")
+    local name
+    name=$(get_friendly_name "$deliverable")
     local package="$out_dir/Salesforce $name.docset"
     local archive_dir="$archive_dir/Salesforce_$name"
     local archive="$archive_dir/Salesforce_$name.tgz"
-    local icon=$(get_icon_name "$deliverable")
+    local icon
+    icon=$(get_icon_name "$deliverable")
     mkdir -p "$archive_dir"
 
     # Generate docset.json
+    local version
     version=$(cat "$build_dir/$deliverable-version.txt")
     sed "s/VERSION/$version/" "$files_dir/docset-$deliverable.json" > "$archive_dir/docset.json"
     # Generated tgz archive
